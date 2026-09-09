@@ -242,7 +242,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, arrayUnion } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, arrayUnion, increment } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyB6qQybRVw4nlwGA-Kp8d6kCqOhdqo11Aw",
@@ -260,6 +260,7 @@
 
     let userRef, userData = {};
     let currentEpisode = null;
+    let selectedEpisode = null; // track selection but don't load iframe until Play
     let isWatching = false;
     let watchTimer = null;
     let watchDuration = 0;
@@ -312,6 +313,8 @@
         return;
       }
 
+      // mark selection but don't set iframe.src yet
+      selectedEpisode = episodeNum;
       currentEpisode = episodeNum;
       watchDuration = 0;
       totalPoints = 0;
@@ -329,21 +332,19 @@
       document.getElementById('watchTime').textContent = '0';
       document.getElementById('currentPoints').textContent = '0.0000';
       
-      // Set episode iframe src so the episode plays inside the site
-      const iframe = document.getElementById('episodeIframe');
-      const src = `https://trimz.tv/the-gamer?ep=${episodeNum}`;
-      iframe.src = src;
-
-      // fallback button — open in new tab if embedding is blocked or user prefers
+      // configure fallback button to open in new tab
       const openBtn = document.getElementById('openInNewTabBtn');
-      openBtn.onclick = () => window.open(src, '_blank');
+      openBtn.onclick = () => {
+        const src = `https://trimz.tv/the-gamer?ep=${episodeNum}`;
+        window.open(src, '_blank');
+      };
 
       updateProgressBar();
       showNotification(`✅ Episode ${episodeNum} Selected - Click Play to Start Earning`);
     };
 
     window.startWatching = async () => {
-      if (!currentEpisode) {
+      if (!selectedEpisode) {
         alert("Please select an episode first!");
         return;
       }
@@ -353,11 +354,16 @@
         return;
       }
 
+      // set iframe.src only when the user actually starts playing
+      const iframe = document.getElementById('episodeIframe');
+      const src = `https://trimz.tv/the-gamer?ep=${selectedEpisode}`;
+      if (!iframe.src) iframe.src = src;
+
       isWatching = true;
       watchDuration = 0;
       totalPoints = 0;
 
-      showNotification(`🎬 Watching Episode ${currentEpisode} - Earning 0.001 points per minute`);
+      showNotification(`🎬 Watching Episode ${selectedEpisode} - Earning 0.001 points per minute`);
 
       watchTimer = setInterval(async () => {
         watchDuration++;
@@ -365,15 +371,17 @@
         updateUI();
         updateProgressBar();
 
+        // Save to Firebase every minute and increment minuteCounter so earn.html reflects points
         try {
           await setDoc(userRef, {
             lastActivityTime: new Date().toISOString(),
             currentlyWatching: {
               series: SERIES_NAME,
-              episode: currentEpisode,
+              episode: selectedEpisode,
               watchedMinutes: watchDuration,
               pointsEarned: totalPoints
-            }
+            },
+            minuteCounter: increment(1)
           }, { merge: true });
         } catch (err) {
           console.error("Error saving progress:", err);
@@ -392,23 +400,27 @@
 
       if (totalPoints > 0) {
         try {
-          await setDoc(userRef, {
+          const next = selectedEpisode < TOTAL_EPISODES ? selectedEpisode + 1 : null;
+          const updateData = {
             watchSessions: arrayUnion({
               series: SERIES_NAME,
-              episode: currentEpisode,
+              episode: selectedEpisode,
               watchedMinutes: watchDuration,
               pointsEarned: totalPoints,
               timestamp: new Date().toISOString()
-            })
-          }, { merge: true });
+            }),
+            totalEarnings: increment(totalPoints)
+          };
 
-          // Unlock next episode after 1 minute
-          if (currentEpisode < TOTAL_EPISODES && !unlockedEpisodes.includes(currentEpisode + 1)) {
-            setTimeout(() => {
-              unlockedEpisodes.push(currentEpisode + 1);
-              createEpisodeButtons();
-              showNotification(`🔓 Episode ${currentEpisode + 1} Unlocked!`);
-            }, 60000);
+          if (next) updateData.unlockedEpisodes = arrayUnion(next);
+
+          await setDoc(userRef, updateData, { merge: true });
+
+          // update local state and UI
+          if (next && !unlockedEpisodes.includes(next)) {
+            unlockedEpisodes.push(next);
+            createEpisodeButtons();
+            showNotification(`🔓 Episode ${next} Unlocked!`);
           }
 
           showNotification(`✅ Saved! Earned ${totalPoints.toFixed(4)} points`);
@@ -447,8 +459,12 @@
           userRef = doc(db, "users", userDoc.id);
           userData = userDoc.data();
 
-          createEpisodeButtons();
+          // initialize unlocked episodes from user data or default to [1]
+          unlockedEpisodes = userData.unlockedEpisodes || [1];
+
+          // show greeting and initial points
           document.getElementById('greeting').textContent = `Hello, ${userData.userName || 'User'}!`;
+          createEpisodeButtons();
         } else {
           window.location.href = "index.html";
         }
@@ -480,7 +496,8 @@
       <div class="episode-title" id="episodeTitle">Select an Episode</div>
       
       <div id="episodeContainer">
-        <iframe id="episodeIframe" src="" sandbox="allow-scripts allow-same-origin" allowfullscreen></iframe>
+        <!-- iframe intentionally sandboxed WITHOUT allow-top-navigation so it cannot redirect the parent page -->
+        <iframe id="episodeIframe" src="" sandbox="allow-scripts" allowfullscreen></iframe>
         <div id="iframeFallback" style="margin-top:8px;">
           <button id="openInNewTabBtn">Open Episode in New Tab</button>
         </div>
