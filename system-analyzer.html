@@ -94,6 +94,12 @@
       border-color: #ff9800;
     }
 
+    .episode-btn.locked {
+      opacity: 0.5;
+      cursor: not-allowed;
+      color: #95a5a6;
+    }
+
     .player-section {
       background: rgba(20, 20, 40, 0.85);
       backdrop-filter: blur(10px);
@@ -173,21 +179,6 @@
       box-shadow: 0 6px 25px rgba(255, 152, 0, 0.6);
     }
 
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    button.stop-btn {
-      background: linear-gradient(135deg, #e74c3c, #c0392b);
-      color: #fff;
-    }
-
-    button.back-btn {
-      background: linear-gradient(135deg, #3498db, #2980b9);
-      color: #fff;
-    }
-
     .progress-bar {
       width: 100%;
       height: 8px;
@@ -254,6 +245,8 @@
     let watchTimer = null;
     let watchDuration = 0;
     let totalPoints = 0;
+    let unlockedEpisodes = [1];
+    let unlockedOnce = {};
 
     const TOTAL_EPISODES = 30;
     const POINTS_PER_MINUTE = 0.001;
@@ -273,6 +266,19 @@
       
       const watchTimeDisplay = document.getElementById('watchTime');
       if (watchTimeDisplay) watchTimeDisplay.textContent = watchDuration;
+
+      // show unlock countdown on selected episode button if applicable
+      if (selectedEpisode && isWatching) {
+        const next = selectedEpisode < TOTAL_EPISODES ? selectedEpisode + 1 : null;
+        if (next && !unlockedEpisodes.includes(next)) {
+          // show a small countdown under the episode title
+          const btns = document.querySelectorAll('.episode-btn');
+          const btn = btns[selectedEpisode - 1];
+          if (btn) {
+            btn.title = `Unlocking next episode in ${Math.max(0, 60 - watchDuration)}s`;
+          }
+        }
+      }
     }
 
     function createEpisodeButtons() {
@@ -283,7 +289,14 @@
         const btn = document.createElement('button');
         btn.className = 'episode-btn';
         btn.textContent = i;
-        btn.onclick = () => selectEpisode(i);
+        
+        if (!unlockedEpisodes.includes(i)) {
+          btn.classList.add('locked');
+          btn.disabled = true;
+        } else {
+          btn.onclick = () => selectEpisode(i);
+        }
+        
         grid.appendChild(btn);
       }
     }
@@ -314,7 +327,7 @@
       document.getElementById('watchTime').textContent = '0';
       document.getElementById('currentPoints').textContent = '0.0000';
       
-      // configure fallback button
+      // configure fallback button to open in new tab
       const openBtn = document.getElementById('openInNewTabBtn');
       openBtn.onclick = () => {
         const src = `https://trimz.tv/system-analyzer?ep=${episodeNum}`;
@@ -322,9 +335,26 @@
       };
 
       updateProgressBar();
-
       showNotification(`✅ Episode ${episodeNum} Selected - Click Play to Start Earning`);
     };
+
+    async function unlockNextEpisodeIfNeeded(episodeNum) {
+      const next = episodeNum < TOTAL_EPISODES ? episodeNum + 1 : null;
+      if (!next) return;
+      if (unlockedEpisodes.includes(next)) return;
+      if (unlockedOnce[episodeNum]) return; // avoid duplicate unlock attempts
+
+      unlockedOnce[episodeNum] = true;
+
+      try {
+        await setDoc(userRef, { unlockedEpisodes: arrayUnion(next) }, { merge: true });
+        unlockedEpisodes.push(next);
+        createEpisodeButtons();
+        showNotification(`🔓 Episode ${next} Unlocked!`);
+      } catch (err) {
+        console.error('Unlock error', err);
+      }
+    }
 
     window.startWatching = async () => {
       if (!selectedEpisode) {
@@ -369,10 +399,26 @@
         } catch (err) {
           console.error("Error saving progress:", err);
         }
+
+        // After 1 minute of watching, unlock next episode (persisted)
+        if (watchDuration >= 1) {
+          unlockNextEpisodeIfNeeded(selectedEpisode);
+        }
+
       }, 60000); // Every minute
 
       document.getElementById('playBtn').disabled = true;
       document.getElementById('stopBtn').disabled = false;
+
+      // show fallback notice after a short delay if iframe is blank
+      setTimeout(() => {
+        const iframeEl = document.getElementById('episodeIframe');
+        // If the iframe has no srcdoc/appears blank visually, show a hint (we can't reliably detect cross-origin failures)
+        const fallbackBox = document.getElementById('iframeFallback');
+        if (fallbackBox) {
+          fallbackBox.style.display = 'block';
+        }
+      }, 3000);
     };
 
     window.stopWatching = async () => {
@@ -431,6 +477,9 @@
           userRef = doc(db, "users", userDoc.id);
           userData = userDoc.data();
 
+          // initialize unlocked episodes from user data or default to [1]
+          unlockedEpisodes = userData.unlockedEpisodes || [1];
+
           // show greeting and initial points
           document.getElementById('greeting').textContent = `Hello, ${userData.userName || 'User'}!`;
           createEpisodeButtons();
@@ -465,9 +514,10 @@
       <div class="episode-title" id="episodeTitle">Select an Episode</div>
       
       <div id="episodeContainer">
-        <!-- iframe intentionally sandboxed WITHOUT allow-top-navigation so it cannot redirect the parent page -->
-        <iframe id="episodeIframe" src="" sandbox="allow-scripts" allowfullscreen></iframe>
-        <div id="iframeFallback" style="margin-top:8px;">
+        <!-- iframe intentionally sandboxed WITH allow-same-origin to improve embedding chances; if trimz blocks framing this still may show blank -->
+        <iframe id="episodeIframe" src="" sandbox="allow-scripts allow-same-origin" allowfullscreen></iframe>
+        <div id="iframeFallback" style="margin-top:8px; display:none;">
+          <p style="color:#ffb84d;">If the episode doesn't load here, it may be blocked from embedding. Use the button below to open in a new tab.</p>
           <button id="openInNewTabBtn">Open Episode in New Tab</button>
         </div>
       </div>
