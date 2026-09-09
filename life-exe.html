@@ -54,6 +54,7 @@
     let isWatching = false;
     let watchStartMs = 0;
     let watchInterval = null; // per-second UI tick
+    let minuteSaver = null; // per-minute saver interval id
     let watchSeconds = 0;
     let pointsThisSession = 0;
 
@@ -117,10 +118,13 @@
       onSnapshot(settingsRef, (snap)=>{
         if(!snap.exists()) return;
         const data = snap.data();
-        if(data && typeof data.pointsPerMinute === 'number'){
-          POINTS_PER_MINUTE = data.pointsPerMinute;
-          const rateEl = document.getElementById('earningRate'); if(rateEl) rateEl.textContent = POINTS_PER_MINUTE.toFixed(4);
-          showNotification(`⚡ Earning rate updated to ${POINTS_PER_MINUTE.toFixed(4)} pts/min`);
+        if(data && (typeof data.pointsPerMinute === 'number' || typeof data.pointsPerMinute === 'string')){
+          const v = Number(data.pointsPerMinute);
+          if(!isNaN(v)){
+            POINTS_PER_MINUTE = v;
+            const rateEl = document.getElementById('earningRate'); if(rateEl) rateEl.textContent = POINTS_PER_MINUTE.toFixed(4);
+            showNotification(`⚡ Earning rate updated to ${POINTS_PER_MINUTE.toFixed(4)} pts/min`);
+          }
         }
       });
     }catch(e){ console.warn('series settings listener failed', e); }
@@ -177,6 +181,10 @@
 
       document.getElementById('playBtn').disabled = true; document.getElementById('stopBtn').disabled = false;
 
+      // clear any existing intervals to avoid duplicates
+      if (watchInterval) { clearInterval(watchInterval); watchInterval = null; }
+      if (minuteSaver) { clearInterval(minuteSaver); minuteSaver = null; }
+
       // tick per second to update UI (keeps fractional minutes accurate)
       watchInterval = setInterval(()=>{
         watchSeconds = Math.floor((Date.now() - watchStartMs)/1000);
@@ -189,7 +197,7 @@
 
       // per-minute save
       let minutesSaved = 0;
-      const minuteSaver = setInterval(async ()=>{
+      minuteSaver = setInterval(async ()=>{
         minutesSaved++;
         if(userRef){
           try{
@@ -198,8 +206,6 @@
         }
         if(minutesSaved >= UNLOCK_THRESHOLD_MINUTES){ unlockNextIfEligible(currentEpisode, minutesSaved); }
       },60000);
-
-      watchInterval._minuteSaver = minuteSaver;
     }
 
     // Stop watching: clear timers, compute elapsed, save session and unlock next if eligible
@@ -207,9 +213,10 @@
       if(!isWatching) return;
       if(watchInterval){
         clearInterval(watchInterval);
-        if(watchInterval._minuteSaver) clearInterval(watchInterval._minuteSaver);
         watchInterval = null;
       }
+      if (minuteSaver) { clearInterval(minuteSaver); minuteSaver = null; }
+
       isWatching = false;
       document.getElementById('playBtn').disabled = false; document.getElementById('stopBtn').disabled = true;
 
