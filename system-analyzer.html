@@ -201,33 +201,47 @@
 
       const elapsedMs = Date.now() - watchStartMs;
       const elapsedSec = Math.floor(elapsedMs/1000);
-      const minutesWatched = elapsedSec/60;
-      const pointsEarned = minutesWatched * POINTS_PER_MINUTE;
+      // use milliseconds to compute minutes precisely
+      const minutesWatched = elapsedMs / 60000;
+      let pointsEarned = minutesWatched * POINTS_PER_MINUTE;
 
-      if(elapsedSec > 0 && userRef){
-        try{
-          console.log('Saving session:', { episode: currentEpisode, minutesWatched, pointsEarned });
-          await updateDoc(userRef, {
-            watchSessions: arrayUnion({ series: SERIES_NAME, episode: currentEpisode, watchedMinutes: minutesWatched, pointsEarned: pointsEarned, timestamp: new Date().toISOString() }),
-            totalPoints: increment(pointsEarned),
-            lastActivityTime: new Date().toISOString()
-          });
+      // Defensive checks to avoid spurious huge writes
+      console.log('stopWatching debug', { watchStartMs, elapsedMs, elapsedSec, minutesWatched, pointsEarned });
+      if(!isFinite(pointsEarned) || pointsEarned <= 0){
+        console.warn('Invalid pointsEarned, aborting save', pointsEarned);
+      } else {
+        // cap per-session minutes to avoid accidental large values (e.g., system clock issues)
+        const MAX_MINUTES_PER_SESSION = 24 * 60; // 24 hours
+        if(minutesWatched > MAX_MINUTES_PER_SESSION){
+          console.warn('Capping minutesWatched from', minutesWatched, 'to', MAX_MINUTES_PER_SESSION);
+          pointsEarned = MAX_MINUTES_PER_SESSION * POINTS_PER_MINUTE;
+        }
 
-          // read back updated user doc so UI can reflect totalPoints immediately
+        if(elapsedSec > 0 && userRef){
           try{
-            const snap = await getDoc(userRef);
-            if(snap.exists()){
-              const data = snap.data();
-              console.log('User updated:', data);
-              const el = document.getElementById('totalPoints');
-              if(el && typeof data.totalPoints === 'number') el.textContent = data.totalPoints.toFixed(4);
-            }
-          }catch(readErr){ console.warn('Failed to read back user doc after update', readErr); }
+            console.log('Saving session:', { episode: currentEpisode, minutesWatched, pointsEarned });
+            await updateDoc(userRef, {
+              watchSessions: arrayUnion({ series: SERIES_NAME, episode: currentEpisode, watchedMinutes: minutesWatched, pointsEarned: pointsEarned, timestamp: new Date().toISOString() }),
+              totalPoints: increment(pointsEarned),
+              lastActivityTime: new Date().toISOString()
+            });
 
-          showNotification(`✅ Saved ${pointsEarned.toFixed(4)} points from Ep ${currentEpisode}`);
-        }catch(e){ console.error('save session failed', e); showNotification('⚠️ Failed to save session — check console for details'); }
-      } else if(elapsedSec > 0){
-        showNotification(`✅ Recorded ${pointsEarned.toFixed(4)} points (not saved - not signed in)`);
+            // read back updated user doc so UI can reflect totalPoints immediately
+            try{
+              const snap = await getDoc(userRef);
+              if(snap.exists()){
+                const data = snap.data();
+                console.log('User updated:', data);
+                const el = document.getElementById('totalPoints');
+                if(el && typeof data.totalPoints === 'number') el.textContent = data.totalPoints.toFixed(4);
+              }
+            }catch(readErr){ console.warn('Failed to read back user doc after update', readErr); }
+
+            showNotification(`✅ Saved ${pointsEarned.toFixed(4)} points from Ep ${currentEpisode}`);
+          }catch(e){ console.error('save session failed', e); showNotification('⚠️ Failed to save session — check console for details'); }
+        } else if(elapsedSec > 0){
+          showNotification(`✅ Recorded ${pointsEarned.toFixed(4)} points (not saved - not signed in)`);
+        }
       }
 
       await unlockNextIfEligible(currentEpisode, minutesWatched);
