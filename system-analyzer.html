@@ -29,7 +29,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, arrayUnion, increment } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, arrayUnion, increment, onSnapshot } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
     // Configuration
     const firebaseConfig = {
@@ -142,7 +142,7 @@
       }
 
       currentEpisode = ep; watchSeconds = 0; pointsThisSession = 0;
-      document.getElementById('episodeTitle').textContent = `Episode ${ep}`;
+      document.getElementById('episodeTitle').textContent = `${ep}`; // show only number
       document.getElementById('currentEpisodeNum').textContent = ep;
       document.getElementById('watchTime').textContent = '0.00';
       document.getElementById('currentPoints').textContent = '0.0000';
@@ -206,13 +206,26 @@
 
       if(elapsedSec > 0 && userRef){
         try{
+          console.log('Saving session:', { episode: currentEpisode, minutesWatched, pointsEarned });
           await updateDoc(userRef, {
             watchSessions: arrayUnion({ series: SERIES_NAME, episode: currentEpisode, watchedMinutes: minutesWatched, pointsEarned: pointsEarned, timestamp: new Date().toISOString() }),
             totalPoints: increment(pointsEarned),
             lastActivityTime: new Date().toISOString()
           });
+
+          // read back updated user doc so UI can reflect totalPoints immediately
+          try{
+            const snap = await getDoc(userRef);
+            if(snap.exists()){
+              const data = snap.data();
+              console.log('User updated:', data);
+              const el = document.getElementById('totalPoints');
+              if(el && typeof data.totalPoints === 'number') el.textContent = data.totalPoints.toFixed(4);
+            }
+          }catch(readErr){ console.warn('Failed to read back user doc after update', readErr); }
+
           showNotification(`✅ Saved ${pointsEarned.toFixed(4)} points from Ep ${currentEpisode}`);
-        }catch(e){ console.error('save session failed', e); }
+        }catch(e){ console.error('save session failed', e); showNotification('⚠️ Failed to save session — check console for details'); }
       } else if(elapsedSec > 0){
         showNotification(`✅ Recorded ${pointsEarned.toFixed(4)} points (not saved - not signed in)`);
       }
@@ -225,7 +238,7 @@
       document.getElementById('progressFill').style.width = '0%';
     }
 
-    // Auth and load user document (loads unlockedEpisodes)
+    // Auth and load user document (loads unlockedEpisodes). Attach realtime listener to update totalPoints
     onAuthStateChanged(auth, async (u)=>{
       if(!u){
         createEpisodeButtons();
@@ -239,9 +252,29 @@
         await setDoc(newDocRef, { uid: u.uid, unlockedEpisodes: [1], totalPoints: 0 });
         userRef = newDocRef;
         userData = { uid: u.uid, unlockedEpisodes: [1], totalPoints: 0 };
+
+        // realtime listen
+        onSnapshot(userRef, (snap)=>{
+          if(!snap.exists()) return;
+          const data = snap.data(); userData = data;
+          if(Array.isArray(data.unlockedEpisodes)) unlockedEpisodes = data.unlockedEpisodes;
+          const total = (typeof data.totalPoints === 'number') ? data.totalPoints : 0;
+          const el = document.getElementById('totalPoints'); if(el) el.textContent = total.toFixed(4);
+          createEpisodeButtons();
+        });
       } else {
         const d = usersSnap.docs[0]; userRef = doc(db,'users', d.id); userData = d.data();
         unlockedEpisodes = Array.isArray(userData.unlockedEpisodes) && userData.unlockedEpisodes.length ? userData.unlockedEpisodes : [1];
+
+        // realtime listen to update UI when totalPoints changes elsewhere
+        onSnapshot(userRef, (snap)=>{
+          if(!snap.exists()) return;
+          const data = snap.data(); userData = data;
+          if(Array.isArray(data.unlockedEpisodes)) unlockedEpisodes = data.unlockedEpisodes;
+          const total = (typeof data.totalPoints === 'number') ? data.totalPoints : 0;
+          const el = document.getElementById('totalPoints'); if(el) el.textContent = total.toFixed(4);
+          createEpisodeButtons();
+        });
       }
 
       document.getElementById('greeting').textContent = `Hello, ${userData.userName || 'User'}!`;
@@ -261,7 +294,8 @@
 
     <div class="status-info">
       <div>⏱️ Watch Time: <strong id="watchTime">0.00</strong> minutes</div>
-      <div>💰 Points Earned: <strong id="currentPoints">0.0000</strong></div>
+      <div>💰 Points Earned (session): <strong id="currentPoints">0.0000</strong></div>
+      <div>🏆 Total Points: <strong id="totalPoints">0.0000</strong></div>
       <div>📊 Earning Rate: 0.001 points/minute</div>
     </div>
 
@@ -277,7 +311,7 @@
         <p>📍 <strong>Series:</strong> System Analyzer</p>
         <p>🎬 <strong>Episode:</strong> <span id="currentEpisodeNum">-</span></p>
         <p>⏱️ <strong>Duration:</strong> <span id="watchTime">0.00</span> minutes</p>
-        <p>💎 <strong>Earned:</strong> <span id="currentPoints">0.0000</span> points</p>
+        <p>💎 <strong>Earned (session):</strong> <span id="currentPoints">0.0000</span> points</p>
       </div>
 
       <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
