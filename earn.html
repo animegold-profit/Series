@@ -249,7 +249,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyB6qQybRVw4nlwGA-Kp8d6kCqOhdqo11Aw",
@@ -340,14 +340,23 @@
           userRef = doc(db, "users", userDoc.id);
           userData = userDoc.data();
 
-          document.getElementById("greeting").innerText = "Hello, " + (userData.userName || "User") + "!";
-          document.getElementById("points").innerText = (((userData.minuteCounter || 0) / 300).toFixed(4)) + " points";
-          document.getElementById("pending").innerText = userData.pendingEarnings || 0;
-          document.getElementById("total").innerText = userData.totalEarnings || 0;
+          // Use realtime updates so total points reflect immediately when updated elsewhere
+          onSnapshot(userRef, (snap) => {
+            if (!snap.exists()) return;
+            userData = snap.data();
+            document.getElementById("greeting").innerText = "Hello, " + (userData.userName || "User") + "!";
+            // Prefer totalPoints if present, otherwise fallback to legacy minuteCounter calculation
+            const totalPointsValue = (typeof userData.totalPoints === 'number') ? userData.totalPoints : ((userData.minuteCounter || 0) / 300);
+            document.getElementById("points").innerText = (totalPointsValue || 0).toFixed(4) + " points";
+            document.getElementById("pending").innerText = userData.pendingEarnings || 0;
+            document.getElementById("total").innerText = userData.totalEarnings || userData.totalPoints || 0;
 
-          if (u.email === "shadowtrimz@gmail.com") {
-            document.getElementById("adminBtn").style.display = "inline-block";
-          }
+            if (u.email === "shadowtrimz@gmail.com") {
+              document.getElementById("adminBtn").style.display = "inline-block";
+            }
+
+            createSeriesButtons();
+          });
 
           createSeriesButtons();
           setInterval(createSeriesButtons, 60000); // Update every minute
