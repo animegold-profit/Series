@@ -11,8 +11,10 @@
     .container{max-width:900px;margin:0 auto}
     h1{font-size:2.2rem;background:linear-gradient(135deg,#ff9800,#ffb84d);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:18px}
     .status-info{background:rgba(20,20,40,0.85);padding:14px;border-radius:10px;margin-bottom:18px;border:1px solid rgba(255,152,0,0.18)}
-    .episodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;margin-bottom:18px}
-    .episode-btn{padding:12px;border-radius:8px;border:2px solid rgba(255,152,0,0.22);background:linear-gradient(135deg,rgba(255,152,0,0.08),rgba(255,152,0,0.03));color:#ffb84d;font-weight:bold;cursor:pointer}
+    .episodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px}
+    .episode-cell{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;border:1px solid rgba(255,152,0,0.08);display:flex;flex-direction:column;align-items:center}
+    .episode-btn{padding:12px;border-radius:8px;border:2px solid rgba(255,152,0,0.22);background:linear-gradient(135deg,rgba(255,152,0,0.08),rgba(255,152,0,0.03));color:#ffb84d;font-weight:bold;cursor:pointer;width:100%}
+    .episode-link{margin-top:8px;font-size:12px;word-break:break-all;color:#ffd88a;text-decoration:underline}
     .episode-btn.locked{opacity:.45;cursor:not-allowed;color:#95a5a6}
     .episode-btn.active{background:linear-gradient(135deg,#ff9800,#ffb84d);color:#000}
     .player-section{background:rgba(20,20,40,0.9);padding:18px;border-radius:12px}
@@ -66,34 +68,40 @@
 
     function formatMinutesFromSeconds(sec){ return (sec/60).toFixed(2); }
 
-    // UI: render episode buttons based on unlockedEpisodes
+    // UI: render episode buttons based on unlockedEpisodes; each cell shows the direct URL
     function createEpisodeButtons(){
       const grid = document.getElementById('episodesGrid'); if(!grid) return; grid.innerHTML = '';
       for(let i=1;i<=TOTAL_EPISODES;i++){
-        const btn = document.createElement('button'); btn.className='episode-btn'; btn.textContent = i; btn.dataset.ep = i;
+        const cell = document.createElement('div'); cell.className = 'episode-cell';
+        const btn = document.createElement('button'); btn.className='episode-btn'; btn.textContent = `Episode ${i}`; btn.dataset.ep = i;
+        const url = `https://trimz.tv/system-analyzer?ep=${i}`;
+        const a = document.createElement('a'); a.className = 'episode-link episode-link-hidden'; a.href = url; a.textContent = url; a.target = '_blank'; a.className = 'episode-link';
+
         if(!unlockedEpisodes.includes(i)){
           btn.classList.add('locked'); btn.disabled = true;
         } else {
           btn.addEventListener('click', ()=> selectEpisode(i));
         }
-        if(currentEpisode === i) btn.classList.add('active');
-        grid.appendChild(btn);
+
+        cell.appendChild(btn);
+        cell.appendChild(a);
+        grid.appendChild(cell);
       }
     }
 
-    // Attempt to embed (keeps original behavior; if blocked fallback to open in new tab)
+    // Try to embed exact URL first, then fall back to candidates
     function tryEmbedAndPlay(ep){
       const iframe = document.getElementById('episodeIframe');
       const poster = document.getElementById('playerPoster');
       const fallback = document.getElementById('iframeFallback');
-      const candidates = [ `https://trimz.tv/embed/system-analyzer?ep=${ep}`, `https://trimz.tv/system-analyzer?ep=${ep}`, `https://trimz.tv/watch/system-analyzer?ep=${ep}`, `https://trimz.tv/system-analyzer?episode=${ep}` ];
+      const exact = `https://trimz.tv/system-analyzer?ep=${ep}`;
+      const candidates = [ exact, `https://trimz.tv/embed/system-analyzer?ep=${ep}`, `https://trimz.tv/watch/system-analyzer?ep=${ep}`, `https://trimz.tv/system-analyzer?episode=${ep}` ];
       let loaded = false; let t = 0;
       const attempt = (src)=>{
         console.log('Trying iframe src:', src);
         if(!iframe || !poster || !fallback) return;
         iframe.style.display = 'none'; poster.style.display = 'block'; fallback.style.display = 'none';
-        const onload = ()=>{ loaded = true; iframe.style.display='block'; poster.style.display='none'; iframe.removeEventListener('load', onload); showNotification('Embedded playback started'); };
-        // attach both load and error handlers; error may not fire for 404 but we keep it
+        const onload = ()=>{ loaded = true; iframe.style.display='block'; poster.style.display='none'; try{ iframe.removeEventListener('load', onload); }catch(e){} showNotification('Embedded playback started'); };
         iframe.addEventListener('load', onload);
         iframe.addEventListener('error', ()=>{ console.warn('iframe error for', src); });
         try{ iframe.removeAttribute('sandbox'); }catch(e){}
@@ -103,17 +111,15 @@
           try{ iframe.removeEventListener('load', onload); }catch(e){}
           t++;
           if(t < candidates.length) { attempt(candidates[t]); return; }
-          // all attempts tried: show fallback and also open last candidate in new tab for reliability
+          // all attempts tried: show fallback (do not auto-open tab)
           fallback.style.display = 'block'; poster.style.display = 'block'; iframe.style.display = 'none';
-          showNotification('Embedding blocked or not available — opened in a new tab');
-          // open last tried candidate in a new tab (user gesture allowed since startWatching was user-triggered)
-          window.open(candidates[candidates.length-1], '_blank');
+          showNotification('Embedding blocked or page not found in iframe — open link in new tab');
         },2500);
       };
       attempt(candidates[0]);
     }
 
-    // Unlock logic: called after a session ends (or periodically if desired)
+    // Unlock logic: called after a session ends
     async function unlockNextIfEligible(ep, minutesWatched){
       const next = ep < TOTAL_EPISODES ? ep + 1 : null;
       if(!next) return;
@@ -161,14 +167,7 @@
       if(isWatching) return;
       isWatching = true; watchStartMs = Date.now(); watchSeconds = 0; pointsThisSession = 0;
 
-      // Immediately open the episode URL in a new tab to avoid iframe blocking or broken embed URLs
-      const primaryUrl = `https://trimz.tv/system-analyzer?ep=${currentEpisode}`;
-      try{
-        console.log('Opening episode in new tab:', primaryUrl);
-        window.open(primaryUrl, '_blank');
-      }catch(e){ console.warn('Failed to open new tab:', e); }
-
-      // Still attempt to embed for users where it works
+      // Attempt to embed for users where it works
       tryEmbedAndPlay(currentEpisode);
 
       document.getElementById('playBtn').disabled = true; document.getElementById('stopBtn').disabled = false;
@@ -285,7 +284,7 @@
         <div id="playerPoster" class="video-placeholder">👁️ Click to open episode in a new tab (if embedding blocked)</div>
       </a>
 
-      <div id="iframeFallback" style="display:none;color:#ffb84d;margin-bottom:8px">Embedding blocked — use Open in New Tab</div>
+      <div id="iframeFallback" style="display:none;color:#ffb84d;margin-bottom:8px">Embedding blocked — open the link shown on the episode box</div>
       <iframe id="episodeIframe" style="display:none;width:100%;height:260px;border-radius:8px;border:0;margin-bottom:12px"></iframe>
 
       <div class="stats">
