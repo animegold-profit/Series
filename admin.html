@@ -35,7 +35,7 @@
     .modal-content button { margin:10px 5px; padding:10px 20px; }
     .modal-content input { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:none; box-sizing:border-box; }
     .modal-content select { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:none; }
-    .modal-content textarea { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:none; box-sizing:border-box; font-family:monospace; background:#222; color:#fff; resize:vertical; min-height:100px; }
+    .modal-content textarea { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:none; box-sizing:border-box; font-family:monospace; background:#222; color:#fff; resize:vertical; }
     .name-row { display:flex; gap:10px; align-items:center; margin:5px 0; }
     .password-row { display:flex; gap:10px; align-items:center; margin:5px 0; }
     .password-input-wrapper { display:flex; gap:5px; align-items:center; flex:1; }
@@ -62,7 +62,7 @@
   </style>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, updateDoc, doc, getDoc, deleteDoc, query, where } 
+    import { getFirestore, collection, getDocs, updateDoc, doc, getDoc, deleteDoc, query, where, increment } 
       from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
     import { getAuth, onAuthStateChanged, signOut
     } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
@@ -94,7 +94,9 @@
         snap.forEach(docSnap => {
           allUsers.push({ id: docSnap.id, data: docSnap.data() });
           const data = docSnap.data();
-          const pointsEarned = ((data.minuteCounter || 0) / 300).toFixed(4);
+          // Prefer the new totalPoints field; fallback to old minuteCounter conversion for compatibility
+          const rawPoints = (typeof data.totalPoints === 'number') ? data.totalPoints : ((data.minuteCounter || 0) / 300);
+          const pointsEarned = Number(rawPoints).toFixed(4);
           
           let statusBadge = "";
           if (data.banned === true) {
@@ -138,7 +140,7 @@
             ${statusBadge}
             ${deviceHTML}
             <div class="earnings-row">
-              <strong>Points Earned:</strong> <input type="number" id="points-${docSnap.id}" value="${pointsEarned}" min="0" step="0.0001">
+              <strong>Total Points:</strong> <input type="number" id="points-${docSnap.id}" value="${pointsEarned}" min="0" step="0.0001">
               <button class="edit-btn" onclick="editPoints('${docSnap.id}')">Edit</button>
             </div>
             <div class="earnings-row">
@@ -251,6 +253,7 @@
       }
     };
 
+    // Update totalPoints (absolute) for a user
     window.editPoints = async function(uid) {
       const points = parseFloat(document.getElementById(`points-${uid}`).value);
       
@@ -260,9 +263,9 @@
       }
 
       try {
-        const minutes = points * 300;
-        await updateDoc(doc(db, "users", uid), { minuteCounter: minutes });
-        alert(`✅ Points updated to ${points}!`);
+        // Set totalPoints directly (absolute value)
+        await updateDoc(doc(db, "users", uid), { totalPoints: points });
+        alert(`✅ Total points updated to ${points.toFixed(4)}!`);
         loadUsers();
       } catch (err) {
         alert("Error updating points: " + err.message);
@@ -475,7 +478,7 @@
           alert("Invalid input!");
           return;
         }
-        addPointsToAll(parseInt(points));
+        addPointsToAll(parseFloat(points));
       } else {
         document.getElementById("addPointsModal").style.display = "none";
         document.getElementById("chooseUserModal").style.display = "flex";
@@ -493,7 +496,7 @@
 
     window.addPointsToSelectedUser = async function() {
       const uid = document.getElementById("userSelect").value;
-      const points = parseInt(document.getElementById("pointsInput").value);
+      const points = parseFloat(document.getElementById("pointsInput").value);
 
       if (!uid) {
         alert("Please select a user!");
@@ -507,11 +510,8 @@
 
       try {
         const userRef = doc(db, "users", uid);
-        const snap = await getDoc(userRef);
-        const userData = snap.exists() ? snap.data() : {};
-        const minutes = (userData.minuteCounter || 0) + (points * 300);
-        
-        await updateDoc(userRef, { minuteCounter: minutes });
+        // increment totalPoints by points
+        await updateDoc(userRef, { totalPoints: increment(points) });
         alert(`✅ Added ${points} points to user!`);
         document.getElementById("chooseUserModal").style.display = "none";
         document.getElementById("userSelect").value = "";
@@ -527,8 +527,7 @@
         let count = 0;
         for (const user of allUsers) {
           const userRef = doc(db, "users", user.id);
-          const minutes = (user.data.minuteCounter || 0) + (points * 300);
-          await updateDoc(userRef, { minuteCounter: minutes });
+          await updateDoc(userRef, { totalPoints: increment(points) });
           count++;
         }
         alert(`✅ Added ${points} points to ${count} users!`);
@@ -581,7 +580,7 @@
     <div class="modal-content">
       <h2>Add Points to User</h2>
       <select id="userSelect"></select>
-      <input type="number" id="pointsInput" placeholder="Enter points" min="1">
+      <input type="number" id="pointsInput" placeholder="Enter points" min="0.0001" step="0.0001">
       <button onclick="addPointsToSelectedUser()" style="background:#27ae60; width:100%;">Add</button>
       <button onclick="closeChooseUserModal()" style="background:#e74c3c; width:100%;">Cancel</button>
     </div>
