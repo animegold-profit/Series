@@ -54,18 +54,17 @@
     let isWatching = false;
     let watchStartMs = 0;
     let watchInterval = null; // per-second UI tick
+    let minuteSaver = null; // per-minute saver interval id
     let watchSeconds = 0;
     let pointsThisSession = 0;
 
     const TOTAL_EPISODES = 30;
-    let POINTS_PER_MINUTE = 0.0001; // now configurable via Firestore
+    let POINTS_PER_MINUTE = 0.0001; // default to 0.0001 as requested
     const UNLOCK_THRESHOLD_MINUTES = 1; // watch >= 1 minute to unlock next
     const SERIES_NAME = 'System Analyzer';
 
     // Utilities
     function showNotification(msg, ms = 3000){ const n=document.createElement('div'); n.className='notification'; n.textContent=msg; document.body.appendChild(n); setTimeout(()=>n.remove(), ms); }
-
-    function formatMinutesFromSeconds(sec){ return (sec/60).toFixed(2); }
 
     // UI: render episode buttons based on unlockedEpisodes; buttons show only the number now
     function createEpisodeButtons(){
@@ -113,16 +112,28 @@
       attempt(candidates[0]);
     }
 
-    // Listen for series settings changes (live)
+    // Listen for series settings changes (live) — parse and validate, fallback to 0.0001
     try{
       const settingsRef = doc(db, 'seriesSettings', 'system-analyzer');
       onSnapshot(settingsRef, (snap)=>{
         if(!snap.exists()) return;
         const data = snap.data();
-        if(data && typeof data.pointsPerMinute === 'number'){
-          POINTS_PER_MINUTE = data.pointsPerMinute;
-          const rateEl = document.getElementById('earningRate'); if(rateEl) rateEl.textContent = POINTS_PER_MINUTE.toFixed(4);
-          showNotification(`⚡ Earning rate updated to ${POINTS_PER_MINUTE.toFixed(4)} pts/min`);
+        if(!data) return;
+        const raw = data.pointsPerMinute;
+        const num = Number(raw);
+        if(Number.isFinite(num) && num >= 0){
+          // clamp to a reasonable maximum to avoid accidental large values
+          const MAX_RATE = 0.1; // adjust if you prefer
+          if(num > MAX_RATE){
+            console.warn(`pointsPerMinute (${num}) exceeds MAX_RATE (${MAX_RATE}); clamping to MAX_RATE`);
+            POINTS_PER_MINUTE = MAX_RATE;
+          } else {
+            POINTS_PER_MINUTE = num;
+          }
+          const el = document.getElementById('earningRate'); if(el) el.textContent = POINTS_PER_MINUTE.toFixed(6);
+          showNotification(`⚡ Earning rate updated to ${POINTS_PER_MINUTE.toFixed(6)} pts/min`);
+        } else {
+          console.warn('Invalid pointsPerMinute in Firestore, keeping default', raw);
         }
       });
     }catch(e){ console.warn('series settings listener failed', e); }
@@ -179,19 +190,23 @@
 
       document.getElementById('playBtn').disabled = true; document.getElementById('stopBtn').disabled = false;
 
+      // clear any existing intervals to avoid duplicates
+      if (watchInterval) { clearInterval(watchInterval); watchInterval = null; }
+      if (minuteSaver) { clearInterval(minuteSaver); minuteSaver = null; }
+
       // tick per second to update UI (keeps fractional minutes accurate)
       watchInterval = setInterval(()=>{
         watchSeconds = Math.floor((Date.now() - watchStartMs)/1000);
         const minutes = watchSeconds/60;
         pointsThisSession = minutes * POINTS_PER_MINUTE;
         document.getElementById('watchTime').textContent = minutes.toFixed(2);
-        document.getElementById('currentPoints').textContent = pointsThisSession.toFixed(4);
+        document.getElementById('currentPoints').textContent = pointsThisSession.toFixed(6);
         document.getElementById('progressFill').style.width = Math.min((minutes/60)*100,100)+'%';
       },1000);
 
       // per-minute save
       let minutesSaved = 0;
-      const minuteSaver = setInterval(async ()=>{
+      minuteSaver = setInterval(async ()=>{
         minutesSaved++;
         if(userRef){
           try{
@@ -200,8 +215,6 @@
         }
         if(minutesSaved >= UNLOCK_THRESHOLD_MINUTES){ unlockNextIfEligible(currentEpisode, minutesSaved); }
       },60000);
-
-      watchInterval._minuteSaver = minuteSaver;
     }
 
     // Stop watching: clear timers, compute elapsed, save session and unlock next if eligible
@@ -209,9 +222,10 @@
       if(!isWatching) return;
       if(watchInterval){
         clearInterval(watchInterval);
-        if(watchInterval._minuteSaver) clearInterval(watchInterval._minuteSaver);
         watchInterval = null;
       }
+      if (minuteSaver) { clearInterval(minuteSaver); minuteSaver = null; }
+
       isWatching = false;
       document.getElementById('playBtn').disabled = false; document.getElementById('stopBtn').disabled = true;
 
@@ -253,10 +267,10 @@
               }
             }catch(readErr){ console.warn('Failed to read back user doc after update', readErr); }
 
-            showNotification(`✅ Saved ${pointsEarned.toFixed(4)} points from Ep ${currentEpisode}`);
+            showNotification(`✅ Saved ${pointsEarned.toFixed(6)} points from Ep ${currentEpisode}`);
           }catch(e){ console.error('save session failed', e); showNotification('⚠️ Failed to save session — check console for details'); }
         } else if(elapsedSec > 0){
-          showNotification(`✅ Recorded ${pointsEarned.toFixed(4)} points (not saved - not signed in)`);
+          showNotification(`✅ Recorded ${pointsEarned.toFixed(6)} points (not saved - not signed in)`);
         }
       }
 
@@ -326,7 +340,7 @@
       <div>⏱️ Watch Time: <strong id="watchTime">0.00</strong> minutes</div>
       <div>💰 Points Earned (session): <strong id="currentPoints">0.0000</strong></div>
       <div>🏆 Total Points: <strong id="totalPoints">0.0000</strong></div>
-      <div>📊 Earning Rate: <strong id="earningRate">0.0001</strong> points/minute</div>
+      <div>📊 Earning Rate: 0.000100 points/minute</div>
     </div>
 
     <div class="player-section">
