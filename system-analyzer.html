@@ -5,224 +5,31 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
-    body {
-      background: linear-gradient(-45deg, #1a0033, #2d0052, #0a0a2e, #16213e);
-      background-size: 400% 400%;
-      animation: gradient 15s ease infinite;
-      font-family: 'Arial', sans-serif;
-      background-attachment: fixed;
-      color: #fff;
-      text-align: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-
-    @keyframes gradient {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      position: relative;
-      z-index: 1;
-    }
-
-    h1 {
-      font-size: 2.5em;
-      background: linear-gradient(135deg, #ff9800, #ffb84d, #ff6b00);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 30px;
-      animation: glow 2s ease-in-out infinite;
-    }
-
-    @keyframes glow {
-      0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 152, 0, 0.5)); }
-      50% { filter: drop-shadow(0 0 15px rgba(255, 152, 0, 0.8)); }
-    }
-
-    .status-info {
-      background: rgba(20, 20, 40, 0.85);
-      backdrop-filter: blur(10px);
-      border: 2px solid rgba(255, 152, 0, 0.3);
-      padding: 20px;
-      border-radius: 15px;
-      margin-bottom: 30px;
-      box-shadow: 0 8px 32px rgba(255, 152, 0, 0.2);
-    }
-
-    .status-info p {
-      color: #ffb84d;
-      font-size: 18px;
-      margin: 10px 0;
-    }
-
-    .episodes-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      gap: 15px;
-      margin-bottom: 30px;
-    }
-
-    .episode-btn {
-      background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 152, 0, 0.05));
-      border: 2px solid rgba(255, 152, 0, 0.3);
-      padding: 20px;
-      border-radius: 10px;
-      color: #ffb84d;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(255, 152, 0, 0.2);
-    }
-
-    .episode-btn:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 25px rgba(255, 152, 0, 0.4);
-      border-color: #ff9800;
-      background: linear-gradient(135deg, rgba(255, 152, 0, 0.2), rgba(255, 152, 0, 0.1));
-    }
-
-    .episode-btn.active {
-      background: linear-gradient(135deg, #ff9800, #ffb84d);
-      color: #000;
-      border-color: #ff9800;
-    }
-
-    .episode-btn.locked {
-      opacity: 0.5;
-      cursor: not-allowed;
-      color: #95a5a6;
-    }
-
-    .player-section {
-      background: rgba(20, 20, 40, 0.85);
-      backdrop-filter: blur(10px);
-      border: 2px solid rgba(255, 152, 0, 0.3);
-      padding: 25px;
-      border-radius: 15px;
-      margin-bottom: 30px;
-      box-shadow: 0 8px 32px rgba(255, 152, 0, 0.2);
-    }
-
-    .episode-title {
-      color: #ffb84d;
-      font-size: 24px;
-      margin-bottom: 20px;
-    }
-
-    .video-placeholder {
-      width: 100%;
-      height: 400px;
-      background: #111;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #ff9800;
-      font-size: 18px;
-      margin-bottom: 20px;
-      border: 2px solid rgba(255, 152, 0, 0.3);
-    }
-
-    #episodeIframe {
-      width: 100%;
-      height: 400px;
-      border-radius: 10px;
-      border: 2px solid rgba(255, 152, 0, 0.3);
-      background: #000;
-      margin-bottom: 12px;
-    }
-
-    .stats {
-      background: rgba(255, 152, 0, 0.1);
-      border: 1px solid rgba(255, 152, 0, 0.3);
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      font-size: 14px;
-    }
-
-    .stats p {
-      color: #ffb84d;
-      margin: 5px 0;
-      text-align: left;
-    }
-
-    .controls {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    button {
-      background: linear-gradient(135deg, #ff9800, #ffb84d);
-      border: none;
-      padding: 12px 30px;
-      border-radius: 8px;
-      color: #000;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
-      font-size: 16px;
-    }
-
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 25px rgba(255, 152, 0, 0.6);
-    }
-
-    .progress-bar {
-      width: 100%;
-      height: 8px;
-      background: rgba(255, 152, 0, 0.1);
-      border-radius: 4px;
-      overflow: hidden;
-      margin: 15px 0;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #ff9800, #ffb84d);
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-
-    .notification {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: linear-gradient(135deg, #27ae60, #2ecc71);
-      padding: 15px 25px;
-      border-radius: 8px;
-      color: #fff;
-      font-weight: bold;
-      z-index: 1000;
-      animation: slideIn 0.5s ease-out;
-    }
-
-    @keyframes slideIn {
-      from { transform: translateX(400px); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-
-    .episode-link {
-      display: inline-block;
-      margin-bottom: 20px;
-      text-decoration: none;
-    }
+    body { background: linear-gradient(-45deg, #1a0033, #2d0052, #0a0a2e, #16213e); background-size: 400% 400%; animation: gradient 15s ease infinite; font-family: 'Arial', sans-serif; background-attachment: fixed; color: #fff; text-align: center; min-height: 100vh; padding: 20px; }
+    @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    .container { max-width: 900px; margin: 0 auto; position: relative; z-index: 1; }
+    h1 { font-size: 2.5em; background: linear-gradient(135deg, #ff9800, #ffb84d, #ff6b00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 30px; animation: glow 2s ease-in-out infinite; }
+    @keyframes glow { 0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 152, 0, 0.5)); } 50% { filter: drop-shadow(0 0 15px rgba(255, 152, 0, 0.8)); } }
+    .status-info { background: rgba(20,20,40,0.85); backdrop-filter: blur(10px); border: 2px solid rgba(255,152,0,0.3); padding: 20px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 8px 32px rgba(255,152,0,0.2); }
+    .episodes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; margin-bottom: 30px; }
+    .episode-btn { background: linear-gradient(135deg, rgba(255,152,0,0.1), rgba(255,152,0,0.05)); border: 2px solid rgba(255,152,0,0.3); padding: 20px; border-radius: 10px; color: #ffb84d; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(255,152,0,0.2); }
+    .episode-btn.locked { opacity: 0.5; cursor: not-allowed; color: #95a5a6; }
+    .episode-btn.active { background: linear-gradient(135deg, #ff9800,#ffb84d); color: #000; }
+    .player-section { background: rgba(20,20,40,0.85); backdrop-filter: blur(10px); border: 2px solid rgba(255,152,0,0.3); padding: 25px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 8px 32px rgba(255,152,0,0.2); }
+    .player-wrap { position: relative; width: 100%; max-width: 100%; }
+    #playerPoster { width:100%; height:400px; border-radius:10px; background:#111 url('') center/cover no-repeat; display:flex; align-items:center; justify-content:center; color:#ff9800; font-size:18px; border:2px solid rgba(255,152,0,0.3); }
+    #episodeIframe { display:none; width:100%; height:400px; border-radius:10px; border:2px solid rgba(255,152,0,0.3); background:#000; }
+    #iframeFallback { display:none; margin-top:8px; }
+    .controls { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    .progress-bar { width:100%; height:8px; background: rgba(255,152,0,0.1); border-radius:4px; overflow:hidden; margin:15px 0; }
+    .progress-fill { height:100%; background: linear-gradient(90deg,#ff9800,#ffb84d); width:0%; transition: width 0.3s ease; }
+    .notification { position: fixed; top:20px; right:20px; background: linear-gradient(135deg,#27ae60,#2ecc71); padding:15px 25px; border-radius:8px; color:#fff; font-weight:bold; z-index:1000; animation: slideIn 0.5s ease-out; }
+    @keyframes slideIn { from { transform: translateX(400px); opacity:0; } to { transform: translateX(0); opacity:1; } }
   </style>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, arrayUnion, increment } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, collection, query, where, getDocs, arrayUnion, increment } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyB6qQybRVw4nlwGA-Kp8d6kCqOhdqo11Aw",
@@ -239,287 +46,96 @@
     const db = getFirestore(app);
 
     let userRef, userData = {};
-    let currentEpisode = null;
-    let selectedEpisode = null; // track selection but don't load iframe until Play
+    let selectedEpisode = null;
     let isWatching = false;
     let watchTimer = null;
     let watchDuration = 0;
     let totalPoints = 0;
     let unlockedEpisodes = [1];
-    let unlockedOnce = {};
-
     const TOTAL_EPISODES = 30;
     const POINTS_PER_MINUTE = 0.001;
-    const SERIES_NAME = "System Analyzer";
+    const SERIES_NAME = 'System Analyzer';
 
-    function showNotification(message) {
-      const notif = document.createElement('div');
-      notif.className = 'notification';
-      notif.textContent = message;
-      document.body.appendChild(notif);
-      setTimeout(() => notif.remove(), 3000);
-    }
-
-    function updateUI() {
-      const pointsDisplay = document.getElementById('currentPoints');
-      if (pointsDisplay) pointsDisplay.textContent = totalPoints.toFixed(4);
-      
-      const watchTimeDisplay = document.getElementById('watchTime');
-      if (watchTimeDisplay) watchTimeDisplay.textContent = watchDuration;
-
-      // show unlock countdown on selected episode button if applicable
-      if (selectedEpisode && isWatching) {
-        const next = selectedEpisode < TOTAL_EPISODES ? selectedEpisode + 1 : null;
-        if (next && !unlockedEpisodes.includes(next)) {
-          // show a small countdown under the episode title
-          const btns = document.querySelectorAll('.episode-btn');
-          const btn = btns[selectedEpisode - 1];
-          if (btn) {
-            btn.title = `Unlocking next episode in ${Math.max(0, 60 - watchDuration)}s`;
-          }
-        }
-      }
-    }
+    function showNotification(message) { const n = document.createElement('div'); n.className = 'notification'; n.textContent = message; document.body.appendChild(n); setTimeout(()=>n.remove(),3000); }
 
     function createEpisodeButtons() {
-      const grid = document.getElementById('episodesGrid');
-      grid.innerHTML = '';
-
-      for (let i = 1; i <= TOTAL_EPISODES; i++) {
-        const btn = document.createElement('button');
-        btn.className = 'episode-btn';
-        btn.textContent = i;
-        
-        if (!unlockedEpisodes.includes(i)) {
-          btn.classList.add('locked');
-          btn.disabled = true;
-        } else {
-          btn.onclick = () => selectEpisode(i);
-        }
-        
+      const grid = document.getElementById('episodesGrid'); grid.innerHTML = '';
+      for (let i=1;i<=TOTAL_EPISODES;i++){
+        const btn = document.createElement('button'); btn.className='episode-btn'; btn.textContent = i;
+        if(!unlockedEpisodes.includes(i)){ btn.classList.add('locked'); btn.disabled = true; }
+        else { btn.onclick = ()=>selectEpisode(i); }
         grid.appendChild(btn);
       }
     }
 
-    window.selectEpisode = async (episodeNum) => {
-      if (isWatching) {
-        alert("Stop current episode before selecting another!");
-        return;
-      }
+    function selectEpisode(ep){ if(isWatching){ alert('Stop current episode before selecting another!'); return; } selectedEpisode = ep; document.getElementById('episodeTitle').textContent = `Episode ${ep}`; document.getElementById('currentEpisodeNum').textContent = ep; document.getElementById('watchTime').textContent='0'; document.getElementById('currentPoints').textContent='0.0000'; document.querySelectorAll('.episode-btn').forEach((b,idx)=>{ if(idx+1===ep) b.classList.add('active'); else b.classList.remove('active'); }); const openBtn = document.getElementById('openInNewTabBtn'); openBtn.onclick = ()=>window.open(`https://trimz.tv/system-analyzer?ep=${ep}`,'_blank'); showNotification(`✅ Episode ${ep} Selected — press Play`); }
 
-      // mark selection but don't set iframe.src yet
-      selectedEpisode = episodeNum;
-      currentEpisode = episodeNum;
-      watchDuration = 0;
-      totalPoints = 0;
-
-      // Update UI
-      document.querySelectorAll('.episode-btn').forEach((btn, idx) => {
-        if (idx + 1 === episodeNum) {
-          btn.classList.add('active');
-        } else {
-          btn.classList.remove('active');
-        }
-      });
-
-      document.getElementById('episodeTitle').textContent = `Episode ${episodeNum}`;
-      document.getElementById('currentEpisodeNum').textContent = episodeNum;
-      document.getElementById('watchTime').textContent = '0';
-      document.getElementById('currentPoints').textContent = '0.0000';
-      
-      // configure fallback button to open in new tab
-      const openBtn = document.getElementById('openInNewTabBtn');
-      openBtn.onclick = () => {
-        const src = `https://trimz.tv/system-analyzer?ep=${episodeNum}`;
-        window.open(src, '_blank');
-      };
-
-      updateProgressBar();
-      showNotification(`✅ Episode ${episodeNum} Selected - Click Play to Start Earning`);
-    };
-
-    async function unlockNextEpisodeIfNeeded(episodeNum) {
-      const next = episodeNum < TOTAL_EPISODES ? episodeNum + 1 : null;
-      if (!next) return;
-      if (unlockedEpisodes.includes(next)) return;
-      if (unlockedOnce[episodeNum]) return; // avoid duplicate unlock attempts
-
-      unlockedOnce[episodeNum] = true;
-
-      try {
-        await setDoc(userRef, { unlockedEpisodes: arrayUnion(next) }, { merge: true });
-        unlockedEpisodes.push(next);
-        createEpisodeButtons();
-        showNotification(`🔓 Episode ${next} Unlocked!`);
-      } catch (err) {
-        console.error('Unlock error', err);
-      }
-    }
-
-    window.startWatching = async () => {
-      if (!selectedEpisode) {
-        alert("Please select an episode first!");
-        return;
-      }
-
-      if (isWatching) {
-        alert("Already watching!");
-        return;
-      }
-
-      // set iframe.src only when the user actually starts playing
+    function tryEmbedAndPlay(ep){
       const iframe = document.getElementById('episodeIframe');
-      const src = `https://trimz.tv/system-analyzer?ep=${selectedEpisode}`;
-      if (!iframe.src) iframe.src = src;
+      const poster = document.getElementById('playerPoster');
+      const fallback = document.getElementById('iframeFallback');
+      const embedCandidates = [
+        `https://trimz.tv/embed/system-analyzer?ep=${ep}`,
+        `https://trimz.tv/system-analyzer?ep=${ep}`
+      ];
 
-      isWatching = true;
-      watchDuration = 0;
-      totalPoints = 0;
-
-      showNotification(`🎬 Watching Episode ${selectedEpisode} - Earning 0.001 points per minute`);
-
-      watchTimer = setInterval(async () => {
-        watchDuration++;
-        totalPoints = watchDuration * POINTS_PER_MINUTE;
-        updateUI();
-        updateProgressBar();
-
-        // Save to Firebase every minute and increment minuteCounter so earn.html reflects points
-        try {
-          await setDoc(userRef, {
-            lastActivityTime: new Date().toISOString(),
-            currentlyWatching: {
-              series: SERIES_NAME,
-              episode: selectedEpisode,
-              watchedMinutes: watchDuration,
-              pointsEarned: totalPoints
-            },
-            minuteCounter: increment(1)
-          }, { merge: true });
-        } catch (err) {
-          console.error("Error saving progress:", err);
-        }
-
-        // After 1 minute of watching, unlock next episode (persisted)
-        if (watchDuration >= 1) {
-          unlockNextEpisodeIfNeeded(selectedEpisode);
-        }
-
-      }, 60000); // Every minute
-
-      document.getElementById('playBtn').disabled = true;
-      document.getElementById('stopBtn').disabled = false;
-
-      // show fallback notice after a short delay if iframe is blank
-      setTimeout(() => {
-        const iframeEl = document.getElementById('episodeIframe');
-        // If the iframe has no srcdoc/appears blank visually, show a hint (we can't reliably detect cross-origin failures)
-        const fallbackBox = document.getElementById('iframeFallback');
-        if (fallbackBox) {
-          fallbackBox.style.display = 'block';
-        }
-      }, 3000);
-    };
-
-    window.stopWatching = async () => {
-      if (!isWatching) return;
-
-      clearInterval(watchTimer);
-      isWatching = false;
-
-      // Save final session to Firestore and increment totalEarnings so earn.html shows it
-      if (totalPoints > 0) {
-        try {
-          await setDoc(userRef, {
-            watchSessions: arrayUnion({
-              series: SERIES_NAME,
-              episode: selectedEpisode,
-              watchedMinutes: watchDuration,
-              pointsEarned: totalPoints,
-              timestamp: new Date().toISOString()
-            }),
-            totalEarnings: increment(totalPoints)
-          }, { merge: true });
-
-          showNotification(`✅ Saved! Earned ${totalPoints.toFixed(4)} points`);
-        } catch (err) {
-          console.error("Error saving session:", err);
-        }
+      let loaded = false; let tried = 0;
+      function attempt(src){ iframe.style.display='none'; poster.style.display='block'; fallback.style.display='none';
+        const onload = ()=>{ loaded = true; iframe.style.display='block'; poster.style.display='none'; iframe.removeEventListener('load', onload); showNotification('Embedded playback started'); };
+        iframe.addEventListener('load', onload);
+        iframe.src = src;
+        setTimeout(()=>{
+          if(loaded) return;
+          iframe.removeEventListener('load', onload);
+          tried++;
+          if(tried < embedCandidates.length){ attempt(embedCandidates[tried]); return; }
+          fallback.style.display='block'; poster.style.display='block'; iframe.style.display='none'; showNotification('Embedding blocked — using fallback');
+        },2500);
       }
-
-      document.getElementById('playBtn').disabled = false;
-      document.getElementById('stopBtn').disabled = true;
-    };
-
-    function updateProgressBar() {
-      const maxMinutes = 60; // Progress bar fills at 60 minutes
-      const progress = Math.min((watchDuration / maxMinutes) * 100, 100);
-      document.getElementById('progressFill').style.width = progress + '%';
+      attempt(embedCandidates[0]);
     }
 
-    window.goBack = () => {
-      if (isWatching) {
-        if (confirm("Stop watching before going back?")) {
-          stopWatching();
-          window.location.href = "earn.html";
-        }
-      } else {
-        window.location.href = "earn.html";
-      }
-    };
+    async function unlockNextEpisodeIfNeeded(ep){ const next = ep < TOTAL_EPISODES ? ep+1 : null; if(!next) return; if(unlockedEpisodes.includes(next)) return; try{ await setDoc(userRef, { unlockedEpisodes: arrayUnion(next) }, { merge:true }); unlockedEpisodes.push(next); createEpisodeButtons(); showNotification(`🔓 Episode ${next} unlocked`); } catch(err){ console.error('unlock error', err); } }
 
-    onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        const usersSnap = await getDocs(query(collection(db, "users"), where("uid", "==", u.uid)));
-        
-        if (!usersSnap.empty) {
-          const userDoc = usersSnap.docs[0];
-          userRef = doc(db, "users", userDoc.id);
-          userData = userDoc.data();
+    function startWatching(){ if(!selectedEpisode){ alert('Please select an episode first'); return; } if(isWatching){ alert('Already watching'); return; }
+      tryEmbedAndPlay(selectedEpisode);
+      isWatching = true; watchDuration = 0; totalPoints = 0; document.getElementById('playBtn').disabled=true; document.getElementById('stopBtn').disabled=false; showNotification(`🎬 Watching Episode ${selectedEpisode} — earning`);
+      watchTimer = setInterval(async ()=>{
+        watchDuration++; totalPoints = watchDuration * POINTS_PER_MINUTE; document.getElementById('watchTime').textContent = String(watchDuration); document.getElementById('currentPoints').textContent = totalPoints.toFixed(4);
+        try{ await setDoc(userRef, { lastActivityTime: new Date().toISOString(), currentlyWatching: { series: SERIES_NAME, episode: selectedEpisode, watchedMinutes: watchDuration, pointsEarned: totalPoints }, minuteCounter: increment(1) }, { merge:true }); } catch(e){ console.error('save progress', e); }
+        if(watchDuration >= 1) unlockNextEpisodeIfNeeded(selectedEpisode);
+      },60000);
+    }
 
-          // initialize unlocked episodes from user data or default to [1]
-          unlockedEpisodes = userData.unlockedEpisodes || [1];
+    async function stopWatching(){ if(!isWatching) return; clearInterval(watchTimer); isWatching=false; if(totalPoints>0){ try{ await setDoc(userRef, { watchSessions: arrayUnion({ series: SERIES_NAME, episode: selectedEpisode, watchedMinutes: watchDuration, pointsEarned: totalPoints, timestamp: new Date().toISOString() }), totalEarnings: increment(totalPoints) }, { merge:true }); showNotification(`✅ Saved! Earned ${totalPoints.toFixed(4)} points`); } catch(e){ console.error('save session', e); } }
+      document.getElementById('playBtn').disabled=false; document.getElementById('stopBtn').disabled=true;
+    }
 
-          // show greeting and initial points
-          document.getElementById('greeting').textContent = `Hello, ${userData.userName || 'User'}!`;
-          createEpisodeButtons();
-        } else {
-          window.location.href = "index.html";
-        }
-      } else {
-        window.location.href = "index.html";
-      }
-    });
+    function updateProgressBar(){ const max=60; const p=Math.min((watchDuration/max)*100,100); document.getElementById('progressFill').style.width = p + '%'; }
 
-    window.logout = () => {
-      if (isWatching) stopWatching();
-      signOut(auth).then(() => window.location.href = "index.html");
-    };
+    onAuthStateChanged(auth, async (u)=>{ if(u){ const usersSnap = await getDocs(query(collection(db,'users'), where('uid','==',u.uid))); if(!usersSnap.empty){ const userDoc = usersSnap.docs[0]; userRef = doc(db,'users',userDoc.id); userData = userDoc.data(); unlockedEpisodes = userData.unlockedEpisodes || [1]; document.getElementById('greeting').textContent = `Hello, ${userData.userName || 'User'}!`; createEpisodeButtons(); } else { window.location.href = 'index.html'; } } else { window.location.href = 'index.html'; } });
+
+    window.logout = ()=>{ if(isWatching) stopWatching(); signOut(auth).then(()=>window.location.href='index.html'); };
   </script>
 </head>
 <body>
   <div class="container">
     <h1 id="greeting">Loading...</h1>
-
     <div class="status-info">
       <p>⏱️ Watch Time: <strong id="watchTime">0</strong> minutes</p>
       <p>💰 Points Earned: <strong id="currentPoints">0.0000</strong></p>
       <p>📊 Earning Rate: 0.001 points/minute</p>
     </div>
 
-    <h2 style="color: #ffb84d; margin-bottom: 20px;">📺 Episodes (30 Total)</h2>
+    <h2 style="color:#ffb84d;margin-bottom:20px;">📺 Episodes (30 Total)</h2>
     <div class="episodes-grid" id="episodesGrid"></div>
 
     <div class="player-section">
       <div class="episode-title" id="episodeTitle">Select an Episode</div>
-      
-      <div id="episodeContainer">
-        <!-- iframe intentionally sandboxed WITH allow-same-origin to improve embedding chances; if trimz blocks framing this still may show blank -->
+      <div class="player-wrap">
+        <div id="playerPoster">Player ready — select an episode and press Play<br><button id="posterPlaySmall" onclick="startWatching()" style="margin-top:12px;padding:10px 16px;">Play</button></div>
         <iframe id="episodeIframe" src="" sandbox="allow-scripts allow-same-origin" allowfullscreen></iframe>
-        <div id="iframeFallback" style="margin-top:8px; display:none;">
-          <p style="color:#ffb84d;">If the episode doesn't load here, it may be blocked from embedding. Use the button below to open in a new tab.</p>
-          <button id="openInNewTabBtn">Open Episode in New Tab</button>
-        </div>
+        <div id="iframeFallback"><p style="color:#ffb84d;">If the episode doesn't load here, it may be blocked from embedding. Use the button below to open in a new tab.</p><button id="openInNewTabBtn">Open Episode in New Tab</button></div>
       </div>
 
       <div class="stats">
@@ -529,14 +145,11 @@
         <p>💎 <strong>Earned:</strong> <span id="currentPoints">0.0000</span></p>
       </div>
 
-      <div class="progress-bar">
-        <div class="progress-fill" id="progressFill"></div>
-      </div>
-
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
       <div class="controls">
         <button id="playBtn" onclick="startWatching()">▶️ Play & Earn</button>
         <button id="stopBtn" onclick="stopWatching()" class="stop-btn" disabled>⏹️ Stop</button>
-        <button onclick="goBack()" class="back-btn">← Back to Series</button>
+        <button onclick="window.location.href='earn.html'" class="back-btn">← Back to Series</button>
         <button onclick="logout()" class="back-btn">Logout</button>
       </div>
     </div>
