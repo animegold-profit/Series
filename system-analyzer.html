@@ -14,7 +14,8 @@
     .episodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px}
     .episode-cell{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;border:1px solid rgba(255,152,0,0.08);display:flex;flex-direction:column;align-items:center}
     .episode-btn{padding:12px;border-radius:8px;border:2px solid rgba(255,152,0,0.22);background:linear-gradient(135deg,rgba(255,152,0,0.08),rgba(255,152,0,0.03));color:#ffb84d;font-weight:bold;cursor:pointer;width:100%}
-    .episode-link{margin-top:8px;font-size:12px;word-break:break-all;color:#ffd88a;text-decoration:underline}
+    .episode-link{margin-top:8px;font-size:12px;word-break:break-all;color:#ffd88a}
+    .episode-open{margin-top:8px;padding:6px 8px;border-radius:6px;background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;border:none;cursor:pointer}
     .episode-btn.locked{opacity:.45;cursor:not-allowed;color:#95a5a6}
     .episode-btn.active{background:linear-gradient(135deg,#ff9800,#ffb84d);color:#000}
     .player-section{background:rgba(20,20,40,0.9);padding:18px;border-radius:12px}
@@ -68,23 +69,27 @@
 
     function formatMinutesFromSeconds(sec){ return (sec/60).toFixed(2); }
 
-    // UI: render episode buttons based on unlockedEpisodes; each cell shows the direct URL
+    // UI: render episode buttons based on unlockedEpisodes; each cell shows the direct URL and an Open button
     function createEpisodeButtons(){
       const grid = document.getElementById('episodesGrid'); if(!grid) return; grid.innerHTML = '';
       for(let i=1;i<=TOTAL_EPISODES;i++){
         const cell = document.createElement('div'); cell.className = 'episode-cell';
         const btn = document.createElement('button'); btn.className='episode-btn'; btn.textContent = `Episode ${i}`; btn.dataset.ep = i;
         const url = `https://trimz.tv/system-analyzer?ep=${i}`;
-        const a = document.createElement('a'); a.className = 'episode-link episode-link-hidden'; a.href = url; a.textContent = url; a.target = '_blank'; a.className = 'episode-link';
+        const linkText = document.createElement('div'); linkText.className = 'episode-link'; linkText.textContent = url;
+        const openBtn = document.createElement('button'); openBtn.className = 'episode-open'; openBtn.textContent = 'Open';
+        openBtn.addEventListener('click', (e)=>{ e.stopPropagation(); window.open(url, '_blank'); });
 
         if(!unlockedEpisodes.includes(i)){
           btn.classList.add('locked'); btn.disabled = true;
+          openBtn.disabled = true;
         } else {
           btn.addEventListener('click', ()=> selectEpisode(i));
         }
 
         cell.appendChild(btn);
-        cell.appendChild(a);
+        cell.appendChild(linkText);
+        cell.appendChild(openBtn);
         grid.appendChild(cell);
       }
     }
@@ -113,7 +118,7 @@
           if(t < candidates.length) { attempt(candidates[t]); return; }
           // all attempts tried: show fallback (do not auto-open tab)
           fallback.style.display = 'block'; poster.style.display = 'block'; iframe.style.display = 'none';
-          showNotification('Embedding blocked or page not found in iframe — open link in new tab');
+          showNotification('Embedding blocked or page not found in iframe — open link using the Open button');
         },2500);
       };
       attempt(candidates[0]);
@@ -280,9 +285,7 @@
     <div class="player-section">
       <div class="episode-title" id="episodeTitle">Select an Episode</div>
 
-      <a id="episodeLink" class="episode-link" href="https://trimz.tv/system-analyzer?ep=1" target="_blank">
-        <div id="playerPoster" class="video-placeholder">👁️ Click to open episode in a new tab (if embedding blocked)</div>
-      </a>
+      <div id="playerPoster" class="video-placeholder">👁️ Player preview — open episode using the Open button if embedding is blocked</div>
 
       <div id="iframeFallback" style="display:none;color:#ffb84d;margin-bottom:8px">Embedding blocked — open the link shown on the episode box</div>
       <iframe id="episodeIframe" style="display:none;width:100%;height:260px;border-radius:8px;border:0;margin-bottom:12px"></iframe>
