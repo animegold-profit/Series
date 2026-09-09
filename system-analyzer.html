@@ -86,20 +86,28 @@
       const iframe = document.getElementById('episodeIframe');
       const poster = document.getElementById('playerPoster');
       const fallback = document.getElementById('iframeFallback');
-      const candidates = [ `https://trimz.tv/embed/system-analyzer?ep=${ep}`, `https://trimz.tv/system-analyzer?ep=${ep}` ];
+      const candidates = [ `https://trimz.tv/embed/system-analyzer?ep=${ep}`, `https://trimz.tv/system-analyzer?ep=${ep}`, `https://trimz.tv/watch/system-analyzer?ep=${ep}`, `https://trimz.tv/system-analyzer?episode=${ep}` ];
       let loaded = false; let t = 0;
       const attempt = (src)=>{
+        console.log('Trying iframe src:', src);
         if(!iframe || !poster || !fallback) return;
         iframe.style.display = 'none'; poster.style.display = 'block'; fallback.style.display = 'none';
         const onload = ()=>{ loaded = true; iframe.style.display='block'; poster.style.display='none'; iframe.removeEventListener('load', onload); showNotification('Embedded playback started'); };
+        // attach both load and error handlers; error may not fire for 404 but we keep it
         iframe.addEventListener('load', onload);
+        iframe.addEventListener('error', ()=>{ console.warn('iframe error for', src); });
+        try{ iframe.removeAttribute('sandbox'); }catch(e){}
         iframe.src = src;
         setTimeout(()=>{
           if(loaded) return;
-          iframe.removeEventListener('load', onload);
+          try{ iframe.removeEventListener('load', onload); }catch(e){}
           t++;
           if(t < candidates.length) { attempt(candidates[t]); return; }
-          fallback.style.display = 'block'; poster.style.display = 'block'; iframe.style.display = 'none'; showNotification('Embedding blocked — fallback available');
+          // all attempts tried: show fallback and also open last candidate in new tab for reliability
+          fallback.style.display = 'block'; poster.style.display = 'block'; iframe.style.display = 'none';
+          showNotification('Embedding blocked or not available — opened in a new tab');
+          // open last tried candidate in a new tab (user gesture allowed since startWatching was user-triggered)
+          window.open(candidates[candidates.length-1], '_blank');
         },2500);
       };
       attempt(candidates[0]);
@@ -152,7 +160,17 @@
       if(!currentEpisode){ alert('Please select an episode first'); return; }
       if(isWatching) return;
       isWatching = true; watchStartMs = Date.now(); watchSeconds = 0; pointsThisSession = 0;
+
+      // Immediately open the episode URL in a new tab to avoid iframe blocking or broken embed URLs
+      const primaryUrl = `https://trimz.tv/system-analyzer?ep=${currentEpisode}`;
+      try{
+        console.log('Opening episode in new tab:', primaryUrl);
+        window.open(primaryUrl, '_blank');
+      }catch(e){ console.warn('Failed to open new tab:', e); }
+
+      // Still attempt to embed for users where it works
       tryEmbedAndPlay(currentEpisode);
+
       document.getElementById('playBtn').disabled = true; document.getElementById('stopBtn').disabled = false;
 
       // tick per second to update UI (keeps fractional minutes accurate)
@@ -165,9 +183,7 @@
         document.getElementById('progressFill').style.width = Math.min((minutes/60)*100,100)+'%';
       },1000);
 
-      // Also optionally persist a "currentlyWatching" document every minute to survive reloads
-      // We'll write once per minute using a timer separate from UI tick
-      // Implementation: start a per-minute save
+      // per-minute save
       let minutesSaved = 0;
       const minuteSaver = setInterval(async ()=>{
         minutesSaved++;
@@ -176,18 +192,15 @@
             await updateDoc(userRef, { lastActivityTime: new Date().toISOString(), currentlyWatching: { series: SERIES_NAME, episode: currentEpisode, watchedMinutes: minutesSaved, pointsEarned: (minutesSaved*POINTS_PER_MINUTE) } });
           }catch(e){ console.error('minute save failed', e); }
         }
-        // unlock check each minute
         if(minutesSaved >= UNLOCK_THRESHOLD_MINUTES){ unlockNextIfEligible(currentEpisode, minutesSaved); }
       },60000);
 
-      // store saver so we can clear it on stop
       watchInterval._minuteSaver = minuteSaver;
     }
 
     // Stop watching: clear timers, compute elapsed, save session and unlock next if eligible
     async function stopWatching(){
       if(!isWatching) return;
-      // clear UI interval
       if(watchInterval){
         clearInterval(watchInterval);
         if(watchInterval._minuteSaver) clearInterval(watchInterval._minuteSaver);
@@ -201,7 +214,6 @@
       const minutesWatched = elapsedSec/60;
       const pointsEarned = minutesWatched * POINTS_PER_MINUTE;
 
-      // persist session if any time watched
       if(elapsedSec > 0 && userRef){
         try{
           await updateDoc(userRef, {
@@ -215,10 +227,8 @@
         showNotification(`✅ Recorded ${pointsEarned.toFixed(4)} points (not saved - not signed in)`);
       }
 
-      // attempt unlock (requires threshold)
       await unlockNextIfEligible(currentEpisode, minutesWatched);
 
-      // reset local counters
       watchStartMs = 0; watchSeconds = 0; pointsThisSession = 0;
       document.getElementById('watchTime').textContent = '0.00';
       document.getElementById('currentPoints').textContent = '0.0000';
@@ -228,7 +238,6 @@
     // Auth and load user document (loads unlockedEpisodes)
     onAuthStateChanged(auth, async (u)=>{
       if(!u){
-        // not signed in — keep default unlockedEpisodes [1]
         createEpisodeButtons();
         document.getElementById('greeting').textContent = 'Hello, Guest!';
         return;
@@ -236,7 +245,6 @@
 
       const usersSnap = await getDocs(query(collection(db,'users'), where('uid','==', u.uid)));
       if(usersSnap.empty){
-        // no user doc found — create one
         const newDocRef = doc(collection(db,'users'));
         await setDoc(newDocRef, { uid: u.uid, unlockedEpisodes: [1], totalPoints: 0 });
         userRef = newDocRef;
@@ -254,7 +262,6 @@
 
     window.logout = ()=>{ if(isWatching) stopWatching(); signOut(auth).then(()=> window.location.href = 'index.html'); };
 
-    // initial DOM ready
     document.addEventListener('DOMContentLoaded', ()=>{ createEpisodeButtons(); });
   </script>
 </head>
