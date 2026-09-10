@@ -91,8 +91,8 @@
       const iframe = document.getElementById('episodeIframe');
       const poster = document.getElementById('playerPoster');
       const fallback = document.getElementById('iframeFallback');
-      const exact = `https://trimz.tv/slamjam?ep=${ep}`;
-      const candidates = [ exact, `https://trimz.tv/embed/slamjam?ep=${ep}`, `https://trimz.tv/watch/slamjam?ep=${ep}`, `https://trimz.tv/slamjam?episode=${ep}` ];
+      const exact = `https://trimz.tv/slam-jam?ep=${ep}`;
+      const candidates = [ exact, `https://trimz.tv/embed/slam-jam?ep=${ep}`, `https://trimz.tv/watch/slam-jam?ep=${ep}`, `https://trimz.tv/slam-jam?episode=${ep}` ];
       let loaded = false; let t = 0;
       const attempt = (src)=>{
         console.log('Trying iframe src:', src);
